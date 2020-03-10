@@ -63,7 +63,9 @@ class _netG_1(nn.Module):
         gpu_ids = None
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             gpu_ids = range(self.ngpu)
-        return nn.parallel.data_parallel(self.main, input, gpu_ids), 0
+            return nn.parallel.data_parallel(self.main, input, gpu_ids), 0
+        else:
+            return self.main(input), 0
 
 class _netD_1(nn.Module):
     def __init__(self, ngpu, nz, nc, ndf,  n_extra_layers_d):
@@ -107,7 +109,11 @@ class _netD_1(nn.Module):
         gpu_ids = None
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             gpu_ids = range(self.ngpu)
-        output = nn.parallel.data_parallel(self.main, input, gpu_ids)
+            output = nn.parallel.data_parallel(self.main, input, gpu_ids)
+        else:
+            output = self.main(input)
+
+
         return output.view(-1, 1)
 
 
@@ -150,7 +156,9 @@ class _netD_2(nn.Module):
         gpu_ids = None
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             gpu_ids = range(self.ngpu)
-        output = nn.parallel.data_parallel(self.convs, input, gpu_ids)
+            output = nn.parallel.data_parallel(self.convs, input, gpu_ids)
+        else:
+            output = self.convs(input)
         output = self.fcs(output.view(-1,1024))
         return output.view(-1, 1)
 
@@ -205,9 +213,11 @@ class _netG_2(nn.Module):
         gpu_ids = None
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             gpu_ids = range(self.ngpu)
+            output = nn.parallel.data_parallel(self.convs, input, gpu_ids)
+        else:
+            output = self.convs(input)
         z_prediction = self.decode_fcs(input)
         input = input.view(-1,1024,1,1)
-        output = nn.parallel.data_parallel(self.convs, input, gpu_ids)
         return output, z_prediction
 
 
@@ -250,8 +260,10 @@ class _netG_3(nn.Module):
         )
     def forward(self, input):
         input = self.fcs(input.view(-1,nz))
+        input = input.view(-1,1024,1,1)
         gpu_ids = None
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             gpu_ids = range(self.ngpu)
-        input = input.view(-1,1024,1,1)
-        return nn.parallel.data_parallel(self.convs, input, gpu_ids)
+            return nn.parallel.data_parallel(self.convs, input, gpu_ids)
+        
+        return self.convs(input)
